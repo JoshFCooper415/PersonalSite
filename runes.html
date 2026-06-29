@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rune Drawer</title>
+<style>
+  :root{
+    --bg:#1c1f1d;
+    --panel:#1c1f1d;
+    --line:#f2f2ee;
+    --line-dim:rgba(255,255,255,0.25);
+    --point:#1c1f1d;
+    --point-active:#f2f2ee;
+    --text:#f2f2ee;
+    --accent:#f2f2ee;
+    --sidebar-w:220px;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    height:100%;
+    overflow:hidden;
+    background-color:#1c1f1d;
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.03), transparent 60%),
+      radial-gradient(ellipse at 70% 80%, rgba(255,255,255,0.025), transparent 60%);
+    color:var(--text);
+    font-family: 'Trebuchet MS', Georgia, serif;
+  }
+  .app-layout{
+    display:flex;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar{
+    width:var(--sidebar-w);
+    min-width:var(--sidebar-w);
+    height:100vh;
+    background:rgba(255,255,255,0.03);
+    border-right:1px solid rgba(255,255,255,0.12);
+    display:flex;
+    flex-direction:column;
+    padding:20px 12px 20px;
+    gap:10px;
+    overflow-y:auto;
+    flex-shrink:0;
+  }
+  .sidebar-title{
+    font-size:0.75rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:#a89c7a;
+    margin:0 0 4px 2px;
+  }
+  .rune-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1;
+  }
+  .rune-entry{
+    display:flex;
+    align-items:center;
+    gap:0;
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:4px;
+    overflow:hidden;
+    transition:border-color 0.15s;
+  }
+  .rune-entry:hover{
+    border-color:rgba(255,255,255,0.35);
+  }
+  .rune-entry.active-entry{
+    border-color:rgba(255,255,255,0.6);
+    background:rgba(255,255,255,0.05);
+  }
+  .rune-load-btn{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:var(--text);
+    padding:8px 10px;
+    font-size:0.8rem;
+    text-align:left;
+    cursor:pointer;
+    font-family:inherit;
+    letter-spacing:0.3px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .rune-load-btn:hover{ background:transparent; }
+  .rune-del-btn{
+    background:transparent;
+    border:none;
+    border-left:1px solid rgba(255,255,255,0.1);
+    color:rgba(255,255,255,0.4);
+    padding:8px 8px;
+    cursor:pointer;
+    font-size:0.85rem;
+    line-height:1;
+    transition:color 0.15s;
+  }
+  .rune-del-btn:hover{
+    color:rgba(255,255,255,0.85);
+    background:rgba(255,255,255,0.06);
+  }
+  .sidebar-empty{
+    font-size:0.75rem;
+    color:#776c50;
+    padding:4px 2px;
+    line-height:1.5;
+  }
+
+  /* ── Main area ── */
+  .main{
+    flex:1;
+    min-width:0;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding:20px 16px;
+    overflow:hidden;
+  }
+  h1{
+    margin:0;
+    font-size:1.4rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--line);
+    text-shadow:0 0 12px rgba(232,201,122,0.35);
+    flex-shrink:0;
+  }
+  .sub{
+    margin:0;
+    font-size:0.85rem;
+    color:#a89c7a;
+    text-align:center;
+    max-width:420px;
+    flex-shrink:0;
+  }
+  .stage{
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.3);
+    border-radius:4px;
+    padding:18px;
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.4);
+    flex:1;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+  }
+  svg{
+    display:block;
+    touch-action:none;
+    /* scale to fill available space while preserving aspect ratio */
+    width:100%;
+    height:100%;
+    max-width:100%;
+    max-height:100%;
+  }
+  .grid-line{
+    stroke:var(--line-dim);
+    stroke-width:1;
+    stroke-dasharray:3 6;
+    opacity:1;
+  }
+  .rune-line{
+    stroke:var(--line);
+    stroke-width:4;
+    stroke-linecap:round;
+    cursor:pointer;
+    opacity:0.92;
+    filter:url(#chalkTexture);
+  }
+  .rune-line:hover{
+    stroke:#ffffff;
+    opacity:1;
+  }
+  .rune-line.sub-rune-highlight{
+    stroke:#e05555;
+    opacity:1;
+    filter:none;
+  }
+  .point{
+    fill:none;
+    stroke:var(--line);
+    stroke-width:2;
+    cursor:pointer;
+    pointer-events:all;
+    transition:fill 0.1s, r 0.1s;
+    opacity:0.95;
+  }
+  .point:hover{
+    fill:rgba(255,255,255,0.15);
+  }
+  .point.active{
+    fill:var(--point-active);
+    r:11;
+  }
+  .point.last-used{
+    fill:rgba(242,242,238,0.35);
+  }
+  .point-small{
+    opacity:0.9;
+  }
+  .point-small.active{
+    r:7;
+  }
+  .sym-flag-line{
+    stroke:#ffffff;
+    stroke-width:3;
+    stroke-linecap:round;
+    pointer-events:none;
+  }
+  .embedded-flag-shape{
+    fill:#ffffff;
+    pointer-events:none;
+  }
+  .point-small.last-used{
+    r:6;
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  button{
+    background:transparent;
+    color:var(--text);
+    border:1px solid rgba(255,255,255,0.5);
+    padding:9px 16px;
+    border-radius:4px;
+    font-size:0.85rem;
+    cursor:pointer;
+    letter-spacing:0.5px;
+    transition:background 0.15s, transform 0.1s;
+  }
+  button:hover{
+    background:rgba(255,255,255,0.08);
+  }
+  button:active{
+    transform:scale(0.97);
+  }
+  button.danger{
+    border-color:rgba(255,255,255,0.5);
+    color:var(--text);
+  }
+  button.danger:hover{
+    background:rgba(255,255,255,0.08);
+  }
+  button.toggle-on{
+    border-color:rgba(255,255,255,0.7);
+    background:rgba(255,255,255,0.1);
+  }
+  button.toggle-off{
+    border-color:rgba(255,255,255,0.2);
+    color:rgba(255,255,255,0.35);
+  }
+  button.toggle-off:hover{
+    background:rgba(255,255,255,0.05);
+    color:rgba(255,255,255,0.6);
+  }
+  .hint{
+    font-size:0.75rem;
+    color:#776c50;
+    text-align:center;
+    max-width:380px;
+  }
+
+  /* ── Save modal ── */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background:#222520;
+    border:1px solid rgba(255,255,255,0.25);
+    border-radius:6px;
+    padding:28px 24px 20px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    min-width:280px;
+  }
+  .modal h2{
+    margin:0;
+    font-size:1rem;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--line);
+  }
+  .modal input[type=text]{
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.3);
+    border-radius:4px;
+    color:var(--text);
+    font-family:inherit;
+    font-size:0.9rem;
+    padding:8px 10px;
+    outline:none;
+    width:100%;
+  }
+  .modal input[type=text]:focus{
+    border-color:rgba(255,255,255,0.6);
+  }
+  .modal-btns{
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-title">Saved Runes</div>
+    <div class="rune-list" id="runeList">
+      <div class="sidebar-empty" id="emptyMsg">No saved runes yet.</div>
+    </div>
+  </aside>
+
+  <!-- Main canvas area -->
+  <main class="main">
+    <h1>Rune Drawer</h1>
+
+    <div class="stage">
+      <svg id="canvas" width="360" height="480" viewBox="0 0 360 480"></svg>
+    </div>
+
+    <div class="controls">
+      <button id="undoBtn">Undo</button>
+      <button id="clearBtn" class="danger">Clear</button>
+      <button id="saveBtn">Save Rune</button>
+      <button id="exportBtn">Export JSON</button>
+      <button id="reduceBtn">Reduce</button>
+      <button id="symToggleBtn" class="toggle-on">Symmetry Rule</button>
+    </div>
+  </main>
+</div>
+
+<!-- Save name modal -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal">
+    <h2>Name this Rune</h2>
+    <input type="text" id="runeNameInput" placeholder="e.g. Fehu, Ward-Sign…" maxlength="48" autocomplete="off"/>
+    <div class="modal-btns">
+      <button id="modalCancelBtn">Cancel</button>
+      <button id="modalConfirmBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── localStorage helpers ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'runeDrawer_runes';
+
+function loadAllRunes(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e){ return []; }
+}
+
+function saveAllRunes(list){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+// ── Sidebar rendering ─────────────────────────────────────────────────────────
+let activeSidebarId = null;
+
+function renderSidebar(){
+  const list = loadAllRunes();
+  const container = document.getElementById('runeList');
+  const emptyMsg = document.getElementById('emptyMsg');
+  // remove old entries (keep emptyMsg node)
+  [...container.children].forEach(ch => { if(ch !== emptyMsg) ch.remove(); });
+
+  if(list.length === 0){
+    emptyMsg.style.display = '';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  list.forEach(rune => {
+    const entry = document.createElement('div');
+    entry.className = 'rune-entry' + (rune.id === activeSidebarId ? ' active-entry' : '');
+    entry.dataset.id = rune.id;
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'rune-load-btn';
+    loadBtn.textContent = rune.name;
+    loadBtn.title = rune.name;
+    loadBtn.addEventListener('click', () => {
+      activeSidebarId = rune.id;
+      renderSidebar();
+      loadRuneIntoCanvas(rune.layout);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'rune-del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete';
+    delBtn.addEventListener('click', () => {
+      if(!confirm(`Delete "${rune.name}"?`)) return;
+      const updated = loadAllRunes().filter(r => r.id !== rune.id);
+      saveAllRunes(updated);
+      if(activeSidebarId === rune.id) activeSidebarId = null;
+      renderSidebar();
+    });
+
+    entry.appendChild(loadBtn);
+    entry.appendChild(delBtn);
+    container.appendChild(entry);
+  });
+}
+
+// ── Rune grid engine ──────────────────────────────────────────────────────────
+let currentGridAPI = null; // exposed by initRuneGrid
+let symmetryRuleEnabled = true;
+
+function initRuneGrid(opts){
+  const svg = document.getElementById(opts.svgId);
+  const W = opts.w, H = opts.h;
+  const points = opts.points;
+  const gridEdges = opts.gridEdges;
+  const pointRadius = opts.pointRadius || 8;
+  const idPrefix = opts.svgId + '-';
+
+  const byId = id => points.find(p => p.id === id);
+
+  function makeLine(cls, x1,y1,x2,y2){
+    const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('class', cls);
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    return l;
+  }
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `
+    <filter id="chalkTexture" filterUnits="userSpaceOnUse" x="-${W}" y="-${H}" width="${W*3}" height="${H*3}">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise" seed="3"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  `;
+  svg.appendChild(defs);
+
+  const symFlag = document.createElementNS('http://www.w3.org/2000/svg','g');
+  symFlag.setAttribute('class', 'sym-flag');
+  symFlag.style.display = 'none';
+  const flagSize = 9;
+  const flagCx = 18, flagCy = 18;
+  const flagLine1 = makeLine('sym-flag-line', flagCx-flagSize, flagCy-flagSize, flagCx+flagSize, flagCy+flagSize);
+  const flagLine2 = makeLine('sym-flag-line', flagCx-flagSize, flagCy+flagSize, flagCx+flagSize, flagCy-flagSize);
+  symFlag.appendChild(flagLine1);
+  symFlag.appendChild(flagLine2);
+  svg.appendChild(symFlag);
+
+  const embeddedFlag = document.createElementNS('http://www.w3.org/2000/svg','g');
+  embeddedFlag.setAttribute('class', 'embedded-flag');
+  embeddedFlag.style.display = 'none';
+  const eFlagCx = W - 18, eFlagCy = 18, eFlagR = 9;
+  const eTriangle = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  eTriangle.setAttribute('points', `${eFlagCx},${eFlagCy-eFlagR} ${eFlagCx-eFlagR},${eFlagCy+eFlagR} ${eFlagCx+eFlagR},${eFlagCy+eFlagR}`);
+  eTriangle.setAttribute('class', 'embedded-flag-shape');
+  embeddedFlag.appendChild(eTriangle);
+  svg.appendChild(embeddedFlag);
+
+  const gridGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  gridGroup.setAttribute('data-role','grid');
+  gridEdges.forEach(([a,b]) => {
+    const pa = byId(a), pb = byId(b);
+    gridGroup.appendChild(makeLine('grid-line', pa.x, pa.y, pb.x, pb.y));
+  });
+  svg.appendChild(gridGroup);
+
+  const runeGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+  svg.appendChild(runeGroup);
+
+  const strokes = []; // {a:id, b:id, el}
+  let selected = null;
+  let history = [];
+
+  function keyFor(a,b){ return [a,b].sort().join('|'); }
+
+  function strokeExists(a,b){
+    const k = keyFor(a,b);
+    return strokes.find(s => keyFor(s.a,s.b) === k);
+  }
+
+
+  function removeStroke(a,b, fromClick){
+    const k = keyFor(a,b);
+    const idx = strokes.findIndex(s => keyFor(s.a,s.b) === k);
+    if(idx === -1) return;
+    const entry = strokes[idx];
+    entry.el.remove();
+    strokes.splice(idx,1);
+    if(fromClick){
+      const hIdx = history.indexOf(entry);
+      if(hIdx !== -1) history.splice(hIdx,1);
+    }
+    onStrokesChanged();
+  }
+
+  function undo(){
+    const last = history.pop();
+    if(!last) return;
+    last.el.remove();
+    const idx = strokes.indexOf(last);
+    if(idx !== -1) strokes.splice(idx,1);
+    onStrokesChanged();
+  }
+
+  function clearAll(){
+    strokes.forEach(s => s.el.remove());
+    strokes.length = 0;
+    history.length = 0;
+    setSelected(null);
+    onStrokesChanged();
+  }
+
+  function setSelected(id){
+    if(selected){
+      const prevEl = document.getElementById(idPrefix+'pt-'+selected);
+      if(prevEl) prevEl.classList.remove('active');
+    }
+    selected = id;
+    if(selected){
+      const el = document.getElementById(idPrefix+'pt-'+selected);
+      if(el) el.classList.add('active');
+    }
+  }
+
+  // Load a saved layout (array of [a,b] edge pairs) into the canvas
+  function loadLayout(edges){
+    clearAll();
+    edges.forEach(([a,b]) => addStrokeRaw(a,b));
+  }
+
+  // Find all grid points that lie strictly between two endpoints on a straight line,
+  // ordered by distance from a, so a long stroke can be split at every midpoint.
+  function intermediatePoints(a, b){
+    const pa = byId(a), pb = byId(b);
+    const dx = pb.x - pa.x, dy = pb.y - pa.y;
+    const len = Math.hypot(dx, dy);
+    if(len < 1e-6) return [];
+    const between = [];
+    for(const p of points){
+      if(p.id === a || p.id === b) continue;
+      // check p lies on segment ab (cross product ~0, dot in (0,len))
+      const ex = p.x - pa.x, ey = p.y - pa.y;
+      const cross = dx*ey - dy*ex;
+      const dot = dx*ex + dy*ey;
+      if(Math.abs(cross) < 0.5 && dot > 1e-6 && dot < len*len - 1e-6){
+        between.push({ id: p.id, t: dot });
+      }
+    }
+    between.sort((x,y) => x.t - y.t);
+    return between.map(p => p.id);
+  }
+
+  // addStrokeRaw adds one stroke without splitting
+  function addStrokeRaw(a, b){
+    if(a === b) return;
+    if(strokeExists(a,b)) return;
+    const pa = byId(a), pb = byId(b);
+    const el = makeLine('rune-line', pa.x, pa.y, pb.x, pb.y);
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeStroke(a, b, true);
+    });
+    runeGroup.appendChild(el);
+    const entry = {a, b, el};
+    strokes.push(entry);
+    history.push(entry);
+    onStrokesChanged();
+  }
+
+  points.forEach(p => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('id', idPrefix+'pt-'+p.id);
+    c.setAttribute('class', 'point' + (p.small ? ' point-small' : ''));
+    c.setAttribute('cx', p.x);
+    c.setAttribute('cy', p.y);
+    c.setAttribute('r', p.small ? (opts.smallPointRadius || 4) : pointRadius);
+    c.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if(selected === null){
+        setSelected(p.id);
+      } else if(selected === p.id){
+        setSelected(null);
+      } else {
+        // Split stroke at any intermediate grid points on the line
+        const mids = intermediatePoints(selected, p.id);
+        const chain = [selected, ...mids, p.id];
+        for(let i = 0; i < chain.length - 1; i++){
+          addStrokeRaw(chain[i], chain[i+1]);
+        }
+        setSelected(p.id);
+      }
+    });
+    svg.appendChild(c);
+  });
+
+  document.getElementById(opts.undoBtnId).addEventListener('click', undo);
+  document.getElementById(opts.clearBtnId).addEventListener('click', clearAll);
+
+  // Geometric symmetry transforms
+  const cx = W/2, cy = H/2;
+  const symmetryTransforms = [
+    (x,y) => [2*cx - x, y],
+    (x,y) => [x, 2*cy - y],
+    (x,y) => [2*cx - x, 2*cy - y],
+    (x,y) => [cx + (y-cy), cy - (x-cx)],
+    (x,y) => [cx - (y-cy), cy + (x-cx)],
+  ];
+
+  function tryMergeTwo(s1, s2){
+    const eps = 0.75;
+    const ends1 = [[s1.x1,s1.y1],[s1.x2,s1.y2]];
+    const ends2 = [[s2.x1,s2.y1],[s2.x2,s2.y2]];
+    for(let i = 0; i < 2; i++){
+      for(let j = 0; j < 2; j++){
+        const p1 = ends1[i], p2 = ends2[j];
+        if(Math.hypot(p1[0]-p2[0], p1[1]-p2[1]) > eps) continue;
+        const o1 = ends1[1-i], o2 = ends2[1-j];
+        const v1 = [p1[0]-o1[0], p1[1]-o1[1]];
+        const v2 = [o2[0]-p1[0], o2[1]-p1[1]];
+        const len1 = Math.hypot(v1[0], v1[1]), len2 = Math.hypot(v2[0], v2[1]);
+        if(len1 < 1e-6 || len2 < 1e-6) continue;
+        const cross = v1[0]*v2[1] - v1[1]*v2[0];
+        const dot = v1[0]*v2[0] + v1[1]*v2[1];
+        if(Math.abs(cross) < 0.05 * len1 * len2 && dot > 0){
+          return { x1:o1[0], y1:o1[1], x2:o2[0], y2:o2[1] };
+        }
+      }
+    }
+    return null;
+  }
+
+  function mergeSegments(segs){
+    let list = segs.map(s => ({...s}));
+    let changed = true;
+    while(changed){
+      changed = false;
+      for(let i = 0; i < list.length && !changed; i++){
+        for(let j = i+1; j < list.length; j++){
+          const merged = tryMergeTwo(list[i], list[j]);
+          if(merged){
+            list.splice(j,1);
+            list.splice(i,1,merged);
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  function segKey(s){
+    let [x1,y1,x2,y2] = [s.x1,s.y1,s.x2,s.y2];
+    if(x1 > x2 || (Math.abs(x1-x2) < 1e-6 && y1 > y2)){
+      [x1,y1,x2,y2] = [x2,y2,x1,y1];
+    }
+    const r = v => Math.round(v*4)/4;
+    return [r(x1),r(y1),r(x2),r(y2)].join(',');
+  }
+
+  function isSymmetricEdgeList(edgeList){
+    if(edgeList.length === 0) return false;
+    const rawSegs = edgeList.map(s => {
+      const pa = byId(s.a), pb = byId(s.b);
+      return { x1:pa.x, y1:pa.y, x2:pb.x, y2:pb.y };
+    });
+    const originalKeys = new Set(mergeSegments(rawSegs).map(segKey));
+
+    return symmetryTransforms.some(transform => {
+      const transformedSegs = rawSegs.map(s => {
+        const [nx1, ny1] = transform(s.x1, s.y1);
+        const [nx2, ny2] = transform(s.x2, s.y2);
+        return { x1:nx1, y1:ny1, x2:nx2, y2:ny2 };
+      });
+      const transformedKeys = new Set(mergeSegments(transformedSegs).map(segKey));
+      if(transformedKeys.size !== originalKeys.size) return false;
+      for(const k of originalKeys){
+        if(!transformedKeys.has(k)) return false;
+      }
+      return true;
+    });
+  }
+
+  function isSymmetricRune(){
+    return isSymmetricEdgeList(strokes);
+  }
+
+  function isConnectedEdgeList(edgeList){
+    if(edgeList.length === 0) return false;
+    const adj = {};
+    edgeList.forEach(({a,b}) => {
+      (adj[a] = adj[a] || new Set()).add(b);
+      (adj[b] = adj[b] || new Set()).add(a);
+    });
+    const touched = Object.keys(adj);
+    const start = touched[0];
+    const seen = new Set([start]);
+    const stack = [start];
+    while(stack.length){
+      const v = stack.pop();
+      for(const u of adj[v]){
+        if(!seen.has(u)){ seen.add(u); stack.push(u); }
+      }
+    }
+    return seen.size === touched.length;
+  }
+
+  function countVisualSegments(edgeList){
+    const rawSegs = edgeList.map(s => {
+      const pa = byId(s.a), pb = byId(s.b);
+      return { x1:pa.x, y1:pa.y, x2:pb.x, y2:pb.y };
+    });
+    return mergeSegments(rawSegs).length;
+  }
+
+  function isValidRuneState(edgeList){
+    return edgeList.length >= 3
+        && isConnectedEdgeList(edgeList)
+        && (!symmetryRuleEnabled || !isSymmetricEdgeList(edgeList));
+  }
+
+  // Returns the edge subset (array of {a,b}) of the smallest unavoidable valid sub-rune,
+  // or null if none exists.
+  function findUnavoidableSubRune(){
+    const edges = strokes.map(s => ({a:s.a, b:s.b}));
+    const n = edges.length;
+    if(n < 2) return null;
+    const fullMask = (1 << n) - 1;
+    const deadEnds = new Set();
+    function maskToEdges(mask){
+      const list = [];
+      for(let i = 0; i < n; i++) if(mask & (1 << i)) list.push(edges[i]);
+      return list;
+    }
+    function canCompleteSafely(mask){
+      if(mask === fullMask) return true;
+      if(deadEnds.has(mask)) return false;
+      for(let i = 0; i < n; i++){
+        if(mask & (1 << i)) continue;
+        const nextMask = mask | (1 << i);
+        if(nextMask !== fullMask && isValidRuneState(maskToEdges(nextMask))){
+          continue;
+        }
+        if(canCompleteSafely(nextMask)) return true;
+      }
+      deadEnds.add(mask);
+      return false;
+    }
+    if(canCompleteSafely(0)) return null;
+
+    // Find the smallest valid sub-rune that appears in every safe ordering.
+    // Enumerate all proper subsets that are valid runes, pick the smallest.
+    let best = null;
+    for(let mask = 1; mask < fullMask; mask++){
+      const subset = maskToEdges(mask);
+      if(!isValidRuneState(subset)) continue;
+      const size = subset.length;
+      if(best === null || size < best.length) best = subset;
+    }
+    return best;
+  }
+
+  function hasUnavoidableValidSubRune(){
+    return findUnavoidableSubRune() !== null;
+  }
+
+  function updateSymmetryFlag(){
+    symFlag.style.display = (symmetryRuleEnabled && isSymmetricRune()) ? 'block' : 'none';
+  }
+
+  function updateEmbeddedRuneFlag(){
+    embeddedFlag.style.display = hasUnavoidableValidSubRune() ? 'block' : 'none';
+  }
+
+  function clearHighlight(){
+    strokes.forEach(s => s.el.classList.remove('sub-rune-highlight'));
+  }
+
+  function onStrokesChanged(){
+    clearHighlight();
+    updateSymmetryFlag();
+    updateEmbeddedRuneFlag();
+  }
+
+  function buildLayout(){
+    const pointById = id => points.find(p => p.id === id);
+    return {
+      grid: opts.svgId,
+      points: strokes.reduce((acc, s) => {
+        [s.a, s.b].forEach(id => {
+          if(!acc.find(p => p.id === id)){
+            const p = pointById(id);
+            acc.push({ id: p.id, x: p.x, y: p.y, small: !!p.small });
+          }
+        });
+        return acc;
+      }, []),
+      edges: strokes.map(s => [s.a, s.b])
+    };
+  }
+
+  function validateAndAlert(){
+    if(!isValidRuneState(strokes)){
+      if(strokes.length < 3){
+        alert('A rune must have at least 3 segments — keep drawing before saving.');
+      } else if(!isConnectedEdgeList(strokes)){
+        alert('This rune is disconnected — save blocked.');
+      } else if(symmetryRuleEnabled && isSymmetricEdgeList(strokes)){
+        alert('This rune is symmetric across one of the grid\'s axes — save blocked.');
+      }
+      return false;
+    }
+    if(hasUnavoidableValidSubRune()){
+      alert('This rune unavoidably contains a smaller valid rune — save blocked.');
+      return false;
+    }
+    return true;
+  }
+
+  // Export JSON (original download behaviour)
+  document.getElementById(opts.exportBtnId).addEventListener('click', () => {
+    if(!validateAndAlert()) return;
+    const json = JSON.stringify(buildLayout(), null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = (opts.filename || 'rune') + '.json';
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Save to localStorage via modal
+  document.getElementById(opts.saveBtnId).addEventListener('click', () => {
+    if(!validateAndAlert()) return;
+    openSaveModal(buildLayout());
+  });
+
+  // Reduce: highlight the smallest unavoidable valid sub-rune
+  document.getElementById(opts.reduceBtnId).addEventListener('click', () => {
+    clearHighlight();
+    if(!hasUnavoidableValidSubRune()){
+      alert('No unavoidable sub-rune — this rune is valid (or invalid for another reason).');
+      return;
+    }
+    const sub = findUnavoidableSubRune();
+    if(!sub) return;
+    const subKeys = new Set(sub.map(e => keyFor(e.a, e.b)));
+    strokes.forEach(s => {
+      if(subKeys.has(keyFor(s.a, s.b))) s.el.classList.add('sub-rune-highlight');
+    });
+  });
+
+  // Symmetry rule toggle
+  document.getElementById(opts.symToggleBtnId).addEventListener('click', () => {
+    symmetryRuleEnabled = !symmetryRuleEnabled;
+    const btn = document.getElementById(opts.symToggleBtnId);
+    btn.classList.toggle('toggle-on', symmetryRuleEnabled);
+    btn.classList.toggle('toggle-off', !symmetryRuleEnabled);
+    onStrokesChanged();
+  });
+
+  // Expose API for sidebar loading
+  currentGridAPI = { loadLayout };
+}
+
+// ── Save modal logic ──────────────────────────────────────────────────────────
+let pendingLayout = null;
+
+function openSaveModal(layout){
+  pendingLayout = layout;
+  const input = document.getElementById('runeNameInput');
+  input.value = '';
+  document.getElementById('saveModal').classList.add('open');
+  setTimeout(() => input.focus(), 50);
+}
+
+function closeSaveModal(){
+  document.getElementById('saveModal').classList.remove('open');
+  pendingLayout = null;
+}
+
+function confirmSave(){
+  const name = document.getElementById('runeNameInput').value.trim();
+  if(!name){ alert('Please enter a name.'); return; }
+  if(!pendingLayout) return;
+
+  const list = loadAllRunes();
+  const id = 'rune_' + Date.now();
+  list.push({ id, name, layout: pendingLayout, savedAt: new Date().toISOString() });
+  saveAllRunes(list);
+  activeSidebarId = id;
+  renderSidebar();
+  closeSaveModal();
+}
+
+document.getElementById('modalCancelBtn').addEventListener('click', closeSaveModal);
+document.getElementById('modalConfirmBtn').addEventListener('click', confirmSave);
+document.getElementById('runeNameInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') confirmSave();
+  if(e.key === 'Escape') closeSaveModal();
+});
+document.getElementById('saveModal').addEventListener('click', e => {
+  if(e.target === e.currentTarget) closeSaveModal();
+});
+
+// ── Load a saved layout into the canvas ───────────────────────────────────────
+function loadRuneIntoCanvas(layout){
+  if(!currentGridAPI){ return; }
+  currentGridAPI.loadLayout(layout.edges);
+}
+
+// ── Grid setup ────────────────────────────────────────────────────────────────
+(function(){
+  const W1 = 360, H1 = 480, cx1 = W1/2, cy1 = H1/2, s1 = 90;
+
+  const mainPoints = [
+    { id: 'top',    x: cx1,      y: cy1 - 2*s1 },
+    { id: 'left1',  x: cx1 - s1, y: cy1 - s1   },
+    { id: 'right1', x: cx1 + s1, y: cy1 - s1   },
+    { id: 'center', x: cx1,      y: cy1        },
+    { id: 'left2',  x: cx1 - s1, y: cy1 + s1   },
+    { id: 'right2', x: cx1 + s1, y: cy1 + s1   },
+    { id: 'bottom', x: cx1,      y: cy1 + 2*s1 },
+  ];
+
+  const gridEdges1 = [
+    ['top','right1'], ['right1','center'], ['center','left1'], ['left1','top'],
+    ['center','right2'], ['right2','bottom'], ['bottom','left2'], ['left2','center']
+  ];
+
+  const byIdMain = id => mainPoints.find(p => p.id === id);
+
+  const edgeMidPoints = gridEdges1.map(([a,b]) => {
+    const pa = byIdMain(a), pb = byIdMain(b);
+    return {
+      id: 'mid-' + a + '-' + b,
+      x: (pa.x + pb.x) / 2,
+      y: (pa.y + pb.y) / 2,
+      small: true
+    };
+  });
+
+  const leftMid  = { id: 'leftMid',  x: cx1 - s1, y: cy1, small: true };
+  const rightMid = { id: 'rightMid', x: cx1 + s1, y: cy1, small: true };
+  const sqCenter1 = { id: 'sqCenter1', x: cx1, y: cy1 - s1, small: true };
+  const sqCenter2 = { id: 'sqCenter2', x: cx1, y: cy1 + s1, small: true };
+
+  const diagEdges1 = [
+    ['left1','leftMid'], ['leftMid','left2'],
+    ['right1','rightMid'], ['rightMid','right2'],
+    ['leftMid','center'], ['center','rightMid'],
+    ['top','sqCenter1'], ['sqCenter1','center'], ['left1','sqCenter1'], ['sqCenter1','right1'],
+    ['center','sqCenter2'], ['sqCenter2','bottom'], ['left2','sqCenter2'], ['sqCenter2','right2']
+  ];
+
+  const midPoints = edgeMidPoints.concat([leftMid, rightMid, sqCenter1, sqCenter2]);
+  const allGridEdges = gridEdges1.concat(diagEdges1);
+
+  initRuneGrid({
+    svgId: 'canvas', w: W1, h: H1, pointRadius: 8, smallPointRadius: 4,
+    filename: 'rune-diamonds',
+    undoBtnId: 'undoBtn', clearBtnId: 'clearBtn',
+    saveBtnId: 'saveBtn', exportBtnId: 'exportBtn', reduceBtnId: 'reduceBtn', symToggleBtnId: 'symToggleBtn',
+    points: mainPoints.concat(midPoints),
+    gridEdges: allGridEdges
+  });
+
+  renderSidebar();
+})();
+</script>
+</body>
+</html>

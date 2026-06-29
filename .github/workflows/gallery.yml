@@ -1,0 +1,79 @@
+name: Build drawing gallery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'drawings/**'
+      - '.github/workflows/gallery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-gallery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so we can date each image
+
+      - name: Convert HEIC images to JPG
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libheif-examples
+          shopt -s nullglob nocaseglob
+          for f in drawings/*.heic; do
+            out="${f%.*}.jpg"
+            if [ ! -f "$out" ]; then
+              echo "Converting $f -> $out"
+              heif-convert "$f" "$out"
+            fi
+            rm -f "$f"
+          done
+
+      - name: Build manifest (ordered by when each image was added)
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+
+          DRAWINGS = "drawings"
+          EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg"}
+
+          def added_time(path):
+              # Unix timestamp of the commit that first added this file.
+              out = subprocess.run(
+                  ["git", "log", "--diff-filter=A", "--follow",
+                   "--format=%at", "--", path],
+                  capture_output=True, text=True,
+              ).stdout.split()
+              if out:
+                  return int(out[-1])          # oldest "added" commit
+              return int(os.path.getmtime(path))  # uncommitted -> file mtime
+
+          files = []
+          for name in os.listdir(DRAWINGS):
+              ext = os.path.splitext(name)[1].lower()
+              if ext in EXTS:
+                  files.append((name, added_time(os.path.join(DRAWINGS, name))))
+
+          # Newest addition first
+          files.sort(key=lambda x: x[1], reverse=True)
+
+          manifest = [{"file": name} for name, _ in files]
+          with open(os.path.join(DRAWINGS, "manifest.json"), "w") as fh:
+              json.dump(manifest, fh, indent=2)
+          print(f"Wrote {len(manifest)} image(s).")
+          PY
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add drawings
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-build drawing gallery"
+            git push
+          else
+            echo "Nothing changed."
+          fi
